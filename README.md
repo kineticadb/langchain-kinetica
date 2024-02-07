@@ -4,7 +4,14 @@ Kinetica intefrace for Langchain. See the [LLM documentation][LLM_DOCS] for an o
 
 [LLM_DOCS]: <https://docs.kinetica.com/7.1/sql-gpt/>
 
-## Prerequisites
+- [1. Prerequisites](#1-prerequisites)
+- [2. Package Contents](#2-package-contents)
+- [3. Installation](#3-installation)
+- [4. Usage](#4-usage)
+- [5. Building](#5-building)
+- [6. See Also](#6-see-also)
+
+## 1. Prerequisites
 
 To use langchain with Kinetica you will need:
 
@@ -12,13 +19,13 @@ To use langchain with Kinetica you will need:
 * Kinetica SqlAssist LLM
 * Kinetica instance >7.2.0 configured to use SqlAssist.
 
-## Package Contents
+## 2. Package Contents
 
 * `KineticaChatLLM`: ChatModel for converting natural language to SQL.
-* `KineticaSqlOutputParser`: OutputParser that will execute SQL from the `KineticaChatLLM` and return a `SqlResponse`
-* `SqlResponse`: The output of the Kinetica chain containing the generated SQL and results from its execution.
+* `KineticaSqlOutputParser`: OutputParser that will execute SQL from the `KineticaChatLLM`.
+* `SqlResponse`: If the Kinetica chain ends with `KineticaSqlOutputParser` then this response will contain the generated SQL and results from its execution.
 
-## Installation
+## 3. Installation
 
 This project is not yet available on pypi. You can install it directly from the repository.
 
@@ -26,11 +33,11 @@ This project is not yet available on pypi. You can install it directly from the 
 $ pip install "langchain-kinetica @ git+ssh://git@github.com/kineticadb/langchain-kinetica.git"
 ```
 
-## Usage
+## 4. Usage
 
 See the [Kinetica LLM Demo notebook](./notebooks/kinetica_llm_demo.ipynb) for examples.
 
-## Building
+## 5. Building
 
 Install the project locally.
 
@@ -57,3 +64,9 @@ $ ls -1 ./dist
 langchain-kinetica-1.0.tar.gz
 langchain_kinetica-1.0-py3-none-any.whl
 ```
+
+## 6. See Also
+
+- [Kinetica LLM Documentation](https://docs.kinetica.com/7.1/sql-gpt/)
+- [LangChain Prompts](https://python.langchain.com/docs/modules/model_io/prompts/)
+- [LancChain Chat Models](https://python.langchain.com/docs/modules/model_io/chat/)
