@@ -20,6 +20,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
+Homepage = "https://kinetica.com"
+Documentation = "https://docs.kinetica.com/7.1/sql-gpt/"
 Repository = "https://github.com/kineticadb/langchain-kinetica"
 
 [tool.setuptools.dynamic]
