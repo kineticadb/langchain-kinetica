@@ -1,31 +1,102 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "langchain-kinetica"
-#version = "1.4.0"
+description = "An integration package connecting Kinetica and LangChain"
+license = { text = "MIT" }
+readme = "README.md"
 authors = [
     {name = "Chad Juliano", email = "cjuliano@kinetica.com"},
 ]
-description = "Kinetica intefrace for Langchain."
-readme = "README.md"
-requires-python = ">=3.10"
-license = {file = "LICENSE"}
-classifiers = [
-    "Programming Language :: Python :: 3",
-]
+version = "1.1.0"
+requires-python = ">=3.10.0,<4.0.0"
 dependencies = [
-    "gpudb >= 7.1.9.10",
-    "langchain-core",
-    "pandas"
+    "langchain-core>=1.1.0,<2.0.0",
+    "gpudb[dataframe] >= 7.1.9.10",
+    "pydantic-settings>=2.12.0",
+    "pandas>=2.2.0,<3.0.0",
 ]
-dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://kinetica.com"
 Documentation = "https://docs.kinetica.com/7.1/sql-gpt/"
 Repository = "https://github.com/kineticadb/langchain-kinetica"
 
-[tool.setuptools.dynamic]
-version = {attr = "langchain_kinetica.__version__"}
+[dependency-groups]
+test = [
+    "pytest>=7.4.3,<8.0.0",
+    "pytest-asyncio>=0.23.2,<1.0.0",
+    "pytest-socket>=0.7.0,<1.0.0",
+    "ipykernel>=7.1.0",
+    "nbconvert>=7.17.0",
+    "faker>=40.1.2",
+    "langchain-openai>=1.1.7",
+    "langchain-text-splitters>=1.1.0",
+    "langchain-community>=0.4.1",
+    "build>=1.4.0",
+]
+test_integration = []
+lint = ["ruff>=0.13.1,<0.14.0"]
+dev = []
+typing = ["mypy>=1.10.0,<2.0.0"]
 
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+[tool.mypy]
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+extend-exclude = ["notebooks/kinetica_provider.ipynb"] # don't remove unused imports
+
+[tool.ruff.format]
+docstring-code-format = false
+docstring-code-line-length = 100
+
+
+[tool.ruff.lint]
+select = [ "ALL" ]
+ignore = [
+    "COM812",  # Conflicts with formatter
+    "PLR0913", # Too many arguments
+    "TRY003",
+
+    # TODO
+    "ANN401",
+]
+#unfixable = ["B028"]
+
+[tool.coverage.run]
+omit = ["tests/*"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config --durations=5"
+markers = [
+    "compile: mark placeholder test used to compile integration tests without running them",
+]
+asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(levelname)s [%(name)s] %(message)s"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+ignore-var-parameters = true  # ignore missing documentation for *args and **kwargs parameters
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**/*.py" = [
+    "S101",   # Tests need assertions
+    "S311",   # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "SLF001", # Private member access
+]
+"scripts/*.py" = [
+    "INP001",   # Not a package
+]
+"notebooks/*.ipynb" = [
+    "D103",  # Missing docstring
+    "T201",  # print found
+    "S608",  # Possible SQL injection
+]

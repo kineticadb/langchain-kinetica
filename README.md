@@ -1,84 +1,56 @@
-## Important: This repo has been archived and the code is being moved to the primary langchain repo under `libs/partners/kinetica`.
-
 # langchain-kinetica
 
-[![PyPI version](https://badge.fury.io/py/langchain-kinetica.svg)](https://badge.fury.io/py/langchain-kinetica)
+[![PyPI - Version](https://img.shields.io/pypi/v/langchain-kinetica?label=%20)](https://pypi.org/project/langchain-kinetica/#history)
+[![PyPI - License](https://img.shields.io/pypi/l/langchain-kinetica)](https://opensource.org/licenses/MIT)
+[![PyPI - Downloads](https://img.shields.io/pepy/dt/langchain-kinetica)](https://pypistats.org/packages/langchain-kinetica)
 [![Release Notes](https://img.shields.io/github/release/kineticadb/langchain-kinetica)](https://github.com/kineticadb/langchain-kinetica/releases)
 [![CI](https://github.com/kineticadb/langchain-kinetica/actions/workflows/publish-to-pypi.yml/badge.svg)](https://github.com/kineticadb/langchain-kinetica/actions/workflows/publish-to-pypi.yml)
 
-Kinetica intefrace for Langchain. See the [LLM documentation][LLM_DOCS] for an overview of the Kinetica LLM.
+This project contains the Kinetica integration 
+provider for Langchain. [Kinetica](https://www.kinetica.com/) is a real-time database purpose built for enabling
+analytics and generative AI on time-series & spatial data. 
 
-[LLM_DOCS]: <https://docs.kinetica.com/7.1/sql-gpt/>
+- [Features](#features)
+- [Quick Install](#quick-install)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [See Also](#see-also)
 
-- [1. Prerequisites](#1-prerequisites)
-- [2. Package Contents](#2-package-contents)
-- [3. Installation](#3-installation)
-- [4. Usage](#4-usage)
-- [5. Building](#5-building)
-- [6. See Also](#6-see-also)
+## Features
 
-## 1. Prerequisites
+This package provides integration for core capabilities:
 
-To use langchain with Kinetica you will need:
+- **Chat model** - Kinetica native Text-to-SQL Generation.
+- **Vector Store** - Vector similarity search using Kinetica tables.
+- **Document Loader** - Generate embeddings from Kinetica tables.
 
-* Python runtime >3.10
-* Kinetica SqlAssist LLM
-* Kinetica instance >7.2.0 configured to use SqlAssist.
+For more information see the 
+[Kinteica Provider Docs](https://docs.langchain.com/oss/python/integrations/providers/kinetica)
 
-## 2. Package Contents
+## Quick Install
 
-* `KineticaChatLLM`: ChatModel for converting natural language to SQL.
-* `KineticaSqlOutputParser`: OutputParser that will execute SQL from the `KineticaChatLLM`.
-* `SqlResponse`: If the Kinetica chain ends with `KineticaSqlOutputParser` then this response will contain the generated SQL and results from its execution.
-
-## 3. Installation
-
-You can install this project from pypi.
-
-```sh
-$ pip install langchain-kinetica
+```bash
+pip install langchain-deepseek
 ```
 
-For a pre-release version you can install directly from the repository.
+## Documentation
 
-```sh
-$ pip install "langchain-kinetica @ git+ssh://git@github.com/kineticadb/langchain-kinetica.git"
+For conceptual guides, tutorials, and examples on using these classes, see the [Kinteica Provider Docs](https://docs.langchain.com/oss/python/integrations/providers/deepseek).
+
+The documentation is also available in notebook format under `./notebooks`.
+
+## Testing
+
+In addition the `make test` macro these tests can be run individually.
+
+```
+$ make integration_tests TEST_FILE=tests/integration_tests/test_chat_models.py
+
+$ make integration_tests TEST_FILE=tests/integration_tests/test_vectorstores.py::test_kinetica
 ```
 
-## 4. Usage
+## See Also
 
-See the [Kinetica LLM Demo notebook](./notebooks/kinetica_llm_demo.ipynb) for examples.
-
-## 5. Building
-
-Install the project locally.
-
-```sh
-$ pip install --editable .
-```
-
-You will need to install the build utility.
-
-```sh
-$ pip install --upgrade build
-```
-
-Build the project
-
-```sh
-$ python3 -m build
-```
-
-The build will generate a `.whl` file that can be distributed.
-
-```sh
-$ ls -1 ./dist
-langchain-kinetica-1.0.tar.gz
-langchain_kinetica-1.0-py3-none-any.whl
-```
-
-## 6. See Also
-
-- [Kinetica LLM Documentation](https://docs.kinetica.com/7.1/sql-gpt/)
-- [LangChain Prompts](https://python.langchain.com/docs/modules/model_io/prompts/)
-- [LancChain Chat Models](https://python.langchain.com/docs/modules/model_io/chat/)
+- [Kinetica LLM Documentation](https://docs.kinetica.com/7.2/sql-gpt/)
+- [LangChain Chat Models](https://docs.langchain.com/oss/python/langchain/models)
+- [Contributing to LangChain](https://docs.langchain.com/oss/python/contributing/overview)
