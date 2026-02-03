@@ -36,10 +36,11 @@ jobs:
       run: uv build
 
     - name: Test Imports
-      run: >- 
-        uv run --isolated --no-project 
-          --with dist/*.whl 
+      run: |
+        uv run --isolated --no-project \
+          --with dist/*.whl \
           python -c "from langchain_kinetica import *"
+        echo "All imports successful"
 
     - name: Run unit tests
       run: uv run python -m pytest tests/unit_tests
