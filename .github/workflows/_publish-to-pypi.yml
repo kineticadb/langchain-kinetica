@@ -1,6 +1,12 @@
 name: Build and Publish
 
-on: push
+on: 
+  push:
+    branches: 
+     - 'master'
+
+# Referencing the UV workflow:
+# https://docs.astral.sh/uv/guides/integration/github/#publishing-to-pypi
 
 jobs:
   build:
@@ -17,11 +23,11 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Display Python version
-      run: uv run python -c "import sys; print(sys.version)"
+    - name: Set up Python
+      run: uv python install
 
-    - name: Install dependencies
-      run: uv sync --group test
+    - name: Install the project
+      run: uv sync --locked --all-extras --dev
 
     - name: Run unit tests
       run: uv run python -m pytest tests/unit_tests
