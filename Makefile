@@ -15,7 +15,7 @@ test tests:
 	uv run --group test pytest --disable-socket --allow-unix-socket $(TEST_FILE)
 
 integration_test integration_tests:
-	uv run --group test --group test_integration pytest $(TEST_FILE)
+	uv run --group test pytest $(TEST_FILE)
 # --record-mode=new_episodes
 
 test_watch:
@@ -35,16 +35,16 @@ lint_tests: PYTHON_FILES=tests
 lint_tests: MYPY_CACHE=.mypy_cache_test
 
 lint lint_diff lint_package lint_tests:
-	[ "$(PYTHON_FILES)" = "" ] || uv run --all-groups ruff check $(PYTHON_FILES)
-	[ "$(PYTHON_FILES)" = "" ] || uv run --all-groups ruff format $(PYTHON_FILES) --diff
-	[ "$(PYTHON_FILES)" = "" ] || mkdir -p $(MYPY_CACHE) && uv run --all-groups mypy $(PYTHON_FILES) --cache-dir $(MYPY_CACHE)
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff check $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff format $(PYTHON_FILES) --diff
+	[ "$(PYTHON_FILES)" = "" ] || mkdir -p $(MYPY_CACHE) && uv run mypy $(PYTHON_FILES) --cache-dir $(MYPY_CACHE)
 
 format format_diff:
-	[ "$(PYTHON_FILES)" = "" ] || uv run --all-groups ruff format $(PYTHON_FILES)
-	[ "$(PYTHON_FILES)" = "" ] || uv run --all-groups ruff check --fix $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff format $(PYTHON_FILES)
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff check --fix $(PYTHON_FILES)
 
 check_imports: $(shell find langchain_kinetica -name '*.py')
-	uv run --all-groups python ./scripts/check_imports.py $^
+	uv run python ./scripts/check_imports.py $^
 
 ######################
 # Generate docs
@@ -55,10 +55,9 @@ NB_FILES=./notebooks/*.ipynb
 DOCS_DIR=./md_docs
 
 docs: 
-	uv run --all-groups \
-		jupyter nbconvert \
-			--to markdown --output-dir=$(DOCS_DIR) \
-			$(NB_FILES)
+	uv run jupyter nbconvert \
+		--to markdown --output-dir=$(DOCS_DIR) \
+		$(NB_FILES)
 
 ######################
 # HELP
