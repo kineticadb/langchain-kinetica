@@ -1,0 +1,46 @@
+# Based on:
+# https://github.com/astral-sh/trusted-publishing-examples/blob/main/.github/workflows/release.yml
+
+name: Release
+
+on:
+  push:
+    tags:
+      # Publish on any tag starting with a `v`, e.g., v1.2.3
+      - v*
+
+jobs:
+  pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    # Environment and permissions trusted publishing.
+    environment:
+      # Create this environment in the GitHub repository under Settings -> Environments
+      name: pypi
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v7
+        with:
+            enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Build
+        run: uv build
+
+      - name: Test imports
+        run: >- 
+          uv run --isolated --no-project 
+            --with dist/*.whl 
+            python -c "from langchain_kinetica import *"
+
+      - name: Publish
+        run: uv publish

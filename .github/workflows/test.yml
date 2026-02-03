@@ -1,4 +1,7 @@
 # Basic CI setup: Lint with ruff, run tests with pytest
+# Based on: 
+# https://github.com/astral-sh/trusted-publishing-examples/blob/main/.github/workflows/ci.yml
+
 name: Test
 
 on:
@@ -29,6 +32,14 @@ jobs:
     - name: Ruff format
       run: uv run ruff format --diff .
 
+    - name: Build Project
+      run: uv build
+
+    - name: Test Imports
+      run: >- 
+        uv run --isolated --no-project 
+          --with dist/*.whl 
+          python -c "from langchain_kinetica import *"
+
     - name: Run unit tests
       run: uv run python -m pytest tests/unit_tests
-
