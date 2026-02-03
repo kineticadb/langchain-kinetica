@@ -3,8 +3,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/langchain-kinetica?label=%20)](https://pypi.org/project/langchain-kinetica/#history)
 [![PyPI - License](https://img.shields.io/pypi/l/langchain-kinetica)](https://opensource.org/licenses/MIT)
 [![PyPI - Downloads](https://img.shields.io/pepy/dt/langchain-kinetica)](https://pypistats.org/packages/langchain-kinetica)
-[![Release Notes](https://img.shields.io/github/release/kineticadb/langchain-kinetica)](https://github.com/kineticadb/langchain-kinetica/releases)
-[![CI](https://github.com/kineticadb/langchain-kinetica/actions/workflows/publish-to-pypi.yml/badge.svg)](https://github.com/kineticadb/langchain-kinetica/actions/workflows/publish-to-pypi.yml)
+[![Test](https://github.com/kineticadb/langchain-kinetica/actions/workflows/test.yml/badge.svg)](https://github.com/kineticadb/langchain-kinetica/actions/workflows/test.yml)
 
 This project contains the Kinetica integration 
 provider for Langchain. [Kinetica](https://www.kinetica.com/) is a real-time database purpose built for enabling
