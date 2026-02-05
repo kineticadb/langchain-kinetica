@@ -9,8 +9,9 @@ license = { text = "MIT" }
 readme = "README.md"
 authors = [
     {name = "Chad Juliano", email = "cjuliano@kinetica.com"},
+    {name = "Anindya Mukherjee", email = "amukherjee@kinetica.com"},
 ]
-version = "1.2.0"
+version = "1.3.0"
 requires-python = ">=3.10.0,<4.0.0"
 dependencies = [
     "langchain-core>=1.1.0,<2.0.0",
@@ -21,7 +22,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://kinetica.com"
-Documentation = "https://docs.kinetica.com/7.1/sql-gpt/"
+Documentation = "http://localhost:3000/oss/python/integrations/chat/kinetica"
 Repository = "https://github.com/kineticadb/langchain-kinetica"
 
 [dependency-groups]
