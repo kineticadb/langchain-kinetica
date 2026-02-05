@@ -3,8 +3,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/langchain-kinetica?label=%20)](https://pypi.org/project/langchain-kinetica/#history)
 [![PyPI - License](https://img.shields.io/pypi/l/langchain-kinetica)](https://opensource.org/licenses/MIT)
 [![PyPI - Downloads](https://img.shields.io/pepy/dt/langchain-kinetica)](https://pypistats.org/packages/langchain-kinetica)
-[![Release Notes](https://img.shields.io/github/release/kineticadb/langchain-kinetica)](https://github.com/kineticadb/langchain-kinetica/releases)
-[![CI](https://github.com/kineticadb/langchain-kinetica/actions/workflows/publish-to-pypi.yml/badge.svg)](https://github.com/kineticadb/langchain-kinetica/actions/workflows/publish-to-pypi.yml)
+[![Test](https://github.com/kineticadb/langchain-kinetica/actions/workflows/test.yml/badge.svg)](https://github.com/kineticadb/langchain-kinetica/actions/workflows/test.yml)
 
 This project contains the Kinetica integration 
 provider for Langchain. [Kinetica](https://www.kinetica.com/) is a real-time database purpose built for enabling
@@ -23,19 +22,17 @@ This package provides integration for core capabilities:
 - **Chat model** - Kinetica native Text-to-SQL Generation.
 - **Vector Store** - Vector similarity search using Kinetica tables.
 - **Document Loader** - Generate embeddings from Kinetica tables.
-
-For more information see the 
-[Kinteica Provider Docs](https://docs.langchain.com/oss/python/integrations/providers/kinetica)
+- **Retriever** - Document retriever based on the Vector Store.
 
 ## Quick Install
 
 ```bash
-pip install langchain-deepseek
+pip install langchain-kinetica
 ```
 
 ## Documentation
 
-For conceptual guides, tutorials, and examples on using these classes, see the [Kinteica Provider Docs](https://docs.langchain.com/oss/python/integrations/providers/deepseek).
+For conceptual guides, tutorials, and examples on using these classes, see the [Kinetica Provider Docs](https://docs.langchain.com/oss/python/integrations/providers/kinetica).
 
 The documentation is also available in notebook format under `./notebooks`.
 

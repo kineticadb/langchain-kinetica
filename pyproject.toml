@@ -10,7 +10,7 @@ readme = "README.md"
 authors = [
     {name = "Chad Juliano", email = "cjuliano@kinetica.com"},
 ]
-version = "1.1.0"
+version = "1.2.0"
 requires-python = ">=3.10.0,<4.0.0"
 dependencies = [
     "langchain-core>=1.1.0,<2.0.0",
@@ -29,42 +29,25 @@ test = [
     "pytest>=7.4.3,<8.0.0",
     "pytest-asyncio>=0.23.2,<1.0.0",
     "pytest-socket>=0.7.0,<1.0.0",
-    "ipykernel>=7.1.0",
-    "nbconvert>=7.17.0",
     "faker>=40.1.2",
     "langchain-openai>=1.1.7",
     "langchain-text-splitters>=1.1.0",
     "langchain-community>=0.4.1",
     "build>=1.4.0",
 ]
-test_integration = []
-lint = ["ruff>=0.13.1,<0.14.0"]
-dev = []
-typing = ["mypy>=1.10.0,<2.0.0"]
-
-[tool.mypy]
-disallow_untyped_defs = true
-ignore_missing_imports = true
-
-[tool.ruff]
-extend-exclude = ["notebooks/kinetica_provider.ipynb"] # don't remove unused imports
-
-[tool.ruff.format]
-docstring-code-format = false
-docstring-code-line-length = 100
-
-
-[tool.ruff.lint]
-select = [ "ALL" ]
-ignore = [
-    "COM812",  # Conflicts with formatter
-    "PLR0913", # Too many arguments
-    "TRY003",
-
-    # TODO
-    "ANN401",
+jupyter = [
+    "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
+    "nbconvert>=7.17.0",
 ]
-#unfixable = ["B028"]
+lint = ["ruff>=0.13.1,<0.14.0"]
+typing = ["mypy>=1.10.0,<2.0.0"]
+dev = [
+  {include-group = "lint"},
+  {include-group = "test"},
+  {include-group = "typing"},
+  {include-group = "jupyter"},
+]
 
 [tool.coverage.run]
 omit = ["tests/*"]
@@ -78,6 +61,29 @@ asyncio_mode = "auto"
 log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(levelname)s [%(name)s] %(message)s"
+
+[tool.mypy]
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+extend-exclude = ["notebooks/kinetica_provider.ipynb"] # don't remove unused imports
+
+[tool.ruff.format]
+docstring-code-format = false
+docstring-code-line-length = 100
+
+[tool.ruff.lint]
+select = [ "ALL" ]
+ignore = [
+    "COM812",  # Conflicts with formatter
+    "PLR0913", # Too many arguments
+    "TRY003",
+
+    # TODO
+    "ANN401",
+]
+#unfixable = ["B028"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
