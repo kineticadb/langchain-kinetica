@@ -17,13 +17,15 @@ class KineticaStore(ByteStore):
         Create a KineticaStore instance and perform operations on it:
 
         .. code-block:: python
+            from langchain_kinetica.storage import KineticaStore
+            from gpudb import GPUdb
 
-            # Instantiate the RedisStore with a Redis connection
-            from langchain_community.storage import RedisStore
-            from langchain_community.utilities.redis import get_client
-
-            client = get_client('kinetica://localhost:9191')
-            kinetica_store = KineticaStore(client=client)
+            kdbc = GPUdb.get_connection(enable_ssl_cert_verification=True)
+            kinetica_store = KineticaStore(
+                kdbc=kdbc,
+                schema_name=SCHEMA_NAME,
+                collection_name="test_kv_store_mget_mset",
+                delete_existing_collection=True)
 
             # Set values for keys
             kinetica_store.mset([("key1", b"value1"), ("key2", b"value2")])
@@ -37,7 +39,7 @@ class KineticaStore(ByteStore):
 
             # Iterate over keys
             for key in kinetica_store.yield_keys():
-                print(key)  # noqa: T201
+                print(key)
     """
 
     def __init__(
