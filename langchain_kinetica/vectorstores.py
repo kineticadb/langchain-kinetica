@@ -121,13 +121,13 @@ class KineticaVectorstore(VectorStore):
                 distance strategy. Defaults to None.
         """
         #self._config = config
-        self.embedding_function = embedding_function
-        self.collection_name = collection_name
-        self.schema_name = schema_name
+        self._embedding_function = embedding_function
+        self._collection_name = collection_name
+        self._schema_name = schema_name
         self._distance_strategy = distance_strategy
-        self.delete_existing_collection = delete_existing_collection
-        self.logger = logger or logging.getLogger(__name__)
-        self.override_relevance_score_fn = relevance_score_fn
+        self._delete_existing_collection = delete_existing_collection
+        self._logger = logger or logging.getLogger(__name__)
+        self._override_relevance_score_fn = relevance_score_fn
 
         self._kdbc: GPUdb | None = kdbc
         if kdbc is  None:
@@ -136,19 +136,18 @@ class KineticaVectorstore(VectorStore):
 
     def __post_init__(self, dimensions: int) -> None:
         """Initialize the store."""
-        self.dimensions = dimensions
-        dimension_field = f"vector({dimensions})"
+        self._dimensions = dimensions
 
-        self.table_name = self.collection_name
-        if self.schema_name is not None and len(self.schema_name) > 0:
-            self.table_name = f"{self.schema_name}.{self.collection_name}"
+        self.table_name = self._collection_name
+        if self._schema_name is not None and len(self._schema_name) > 0:
+            self.table_name = f"{self._schema_name}.{self._collection_name}"
 
-        if self.delete_existing_collection:
-            self.__drop_table()
+        if self._delete_existing_collection:
+            self.__drop_table_if_exists()
 
         self.table_schema = [
             ["text", "string"],
-            ["embedding", "bytes", dimension_field],
+            ["embedding", "bytes", f"vector({dimensions})"],
             ["metadata", "string", "json"],
             ["id", "string", "uuid"],
         ]
@@ -160,7 +159,7 @@ class KineticaVectorstore(VectorStore):
     @property
     def embeddings(self) -> Embeddings:
         """Return the embedding function."""
-        return self.embedding_function
+        return self._embedding_function
 
     @classmethod
     def __from(
@@ -237,7 +236,7 @@ class KineticaVectorstore(VectorStore):
 
         return store
 
-    def __create_tables_if_not_exists(self) -> Any:
+    def __create_tables_if_not_exists(self) -> GPUdbTable:
         """Create the table to store the texts and embeddings."""
         return GPUdbTable(
             _type=self.table_schema,
@@ -246,9 +245,9 @@ class KineticaVectorstore(VectorStore):
             options={"is_replicated": "true"},
         )
 
-    def __drop_table(self) -> None:
+    def __drop_table_if_exists(self) -> None:
         """Delete the table."""
-        self.logger.info("Deleting table: %s", self.table_name)
+        self._logger.info("Deleting table: %s", self.table_name)
         self._kdbc.clear_table(
             table_name=f"{self.table_name}",
             options={"no_error_if_not_exists": "true"}
@@ -256,7 +255,7 @@ class KineticaVectorstore(VectorStore):
 
     def __create_schema(self) -> None:
         """Create a new Kinetica schema."""
-        self._kdbc.create_schema(self.schema_name)
+        self._kdbc.create_schema(self._schema_name)
 
     # def __delete_schema(self) -> None:
     #     """Delete schema and tables.
@@ -296,7 +295,7 @@ class KineticaVectorstore(VectorStore):
         for text, embedding, metadata, doc_id in zip(
             texts, embeddings, metadatas, ids, strict=False
         ):
-            buf = struct.pack(f"{self.dimensions}f", *embedding)
+            buf = struct.pack(f"{self._dimensions}f", *embedding)
             records.append([text, buf, json.dumps(metadata), doc_id])
 
         self.EmbeddingStore.insert_records(records)
@@ -321,10 +320,10 @@ class KineticaVectorstore(VectorStore):
         Returns:
             List of ids from adding the texts into the vectorstore.
         """
-        embeddings = self.embedding_function.embed_documents(list(texts))
-        self.dimensions = len(embeddings[0])
+        embeddings = self._embedding_function.embed_documents(list(texts))
+        self._dimensions = len(embeddings[0])
         if not hasattr(self, "EmbeddingStore"):
-            self.__post_init__(self.dimensions)
+            self.__post_init__(self._dimensions)
         return self.add_embeddings(
             texts=texts, embeddings=embeddings, metadatas=metadatas, ids=ids, **kwargs
         )
@@ -347,7 +346,7 @@ class KineticaVectorstore(VectorStore):
         Returns:
             List of Documents most similar to the query.
         """
-        embedding = self.embedding_function.embed_query(text=query)
+        embedding = self._embedding_function.embed_query(text=query)
         return self.similarity_search_by_vector(
             embedding=embedding,
             k=k,
@@ -370,7 +369,7 @@ class KineticaVectorstore(VectorStore):
         Returns:
             List of Documents most similar to the query and score for each
         """
-        embedding = self.embedding_function.embed_query(query)
+        embedding = self._embedding_function.embed_query(query)
 
         return self.similarity_search_with_score_by_vector(
             embedding=embedding, k=k, emb_filter=emb_filter
@@ -398,7 +397,7 @@ class KineticaVectorstore(VectorStore):
                 results = list(zip(*list(records.values()), strict=False))
 
                 return self._results_to_docs_and_scores(results)
-            self.logger.warning(
+            self._logger.warning(
                 "No records found; status: %s", resp["status_info"]["status"]
             )
         return results
@@ -435,7 +434,7 @@ class KineticaVectorstore(VectorStore):
                         page_content=result[0],
                         metadata=json.loads(result[1]),
                     ),
-                    result[2] if self.embedding_function is not None else None,
+                    result[2] if self._embedding_function is not None else None,
                 )
                 for result in results
             ]
@@ -453,8 +452,8 @@ class KineticaVectorstore(VectorStore):
         - embedding dimensionality
         - etc.
         """
-        if self.override_relevance_score_fn is not None:
-            return self.override_relevance_score_fn
+        if self._override_relevance_score_fn is not None:
+            return self._override_relevance_score_fn
 
         # Default strategy is to rely on distance strategy provided
         # in vectorstore constructor
@@ -506,15 +505,15 @@ class KineticaVectorstore(VectorStore):
         query_string = f"""
                 SELECT text, metadata, {dist_strategy}(embedding, '{embedding_str}')
                 as distance, embedding
-                FROM "{self.schema_name}"."{self.collection_name}"
+                FROM "{self._schema_name}"."{self._collection_name}"
                 {where_clause}
                 ORDER BY distance asc NULLS LAST
                 LIMIT {k}
         """  # noqa: S608
 
-        self.logger.debug(query_string)
+        self._logger.debug(query_string)
         resp = self._kdbc.execute_sql_and_decode(query_string)
-        self.logger.debug(resp)
+        self._logger.debug(resp)
         return resp
 
     def max_marginal_relevance_search_with_score_by_vector(
@@ -553,7 +552,7 @@ class KineticaVectorstore(VectorStore):
         results = list(zip(*list(records.values()), strict=False))
 
         embedding_list = [
-            struct.unpack(f"{self.dimensions}f", embedding)
+            struct.unpack(f"{self._dimensions}f", embedding)
             for embedding in records["embedding"]
         ]
 
@@ -596,7 +595,7 @@ class KineticaVectorstore(VectorStore):
         Returns:
             List[Document]: List of Documents selected by maximal marginal relevance.
         """
-        embedding = self.embedding_function.embed_query(query)
+        embedding = self._embedding_function.embed_query(query)
         return self.max_marginal_relevance_search_by_vector(
             embedding,
             k=k,
@@ -635,7 +634,7 @@ class KineticaVectorstore(VectorStore):
             List[Tuple[Document, float]]: List of Documents selected by maximal marginal
                 relevance to the query and score for each.
         """
-        embedding = self.embedding_function.embed_query(query)
+        embedding = self._embedding_function.embed_query(query)
         return self.max_marginal_relevance_search_with_score_by_vector(
             embedding=embedding,
             k=k,
