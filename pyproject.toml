@@ -16,7 +16,6 @@ requires-python = ">=3.10.0,<4.0.0"
 dependencies = [
     "langchain-core>=1.1.0,<2.0.0",
     "gpudb[dataframe] >= 7.1.9.10",
-    "pydantic-settings>=2.12.0",
     "pandas>=2.2.0,<3.0.0",
 ]
 
@@ -80,9 +79,14 @@ ignore = [
     "COM812",  # Conflicts with formatter
     "PLR0913", # Too many arguments
     "TRY003",
+    "ERA001", # Found commented-out code
 
     # TODO
     "ANN401",
+    "TD002", # missing author in todo
+    "TD003", # missing date in todo
+    "FIX002", # Line contains TODO
+    
 ]
 #unfixable = ["B028"]
 

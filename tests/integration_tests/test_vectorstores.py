@@ -4,6 +4,7 @@ import os
 from typing import override
 
 import pytest
+from gpudb import GPUdb
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_openai.embeddings import OpenAIEmbeddings
@@ -11,7 +12,6 @@ from pydantic import SecretStr
 
 from langchain_kinetica.vectorstores import (
     DistanceStrategy,
-    KineticaSettings,
     KineticaVectorstore,
 )
 
@@ -19,7 +19,7 @@ from langchain_kinetica.vectorstores import (
 DIMENSIONS = 3
 
 # Schema to be created for tests
-SCHEMA_NAME = "langchain_test"
+SCHEMA_NAME = "temp"
 
 # Setting OPENAI_API_KEY will enable optional OpenAI embedding tests
 OPENAI_API_KEY = None
@@ -41,94 +41,94 @@ class FakeEmbeddingsWithAdaDimension(Embeddings):
         return [1.0] * (DIMENSIONS - 1) + [0.0]
 
 
-@pytest.fixture
-def create_config() -> KineticaSettings:
+@pytest.fixture(scope="module")
+def fx_kdbc() -> GPUdb:
     """Create Kinetica configuration for tests."""
-    return KineticaSettings()
+    return GPUdb.get_connection(enable_ssl_cert_verification=True)
 
 
-def test_kinetica(create_config: KineticaSettings) -> None:
+def test_kinetica(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"text": text} for text in texts]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
-        collection_name="test_kinetica",
+        collection_name="test_kinetica_new",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=True,
+        delete_existing_collection=True,
     )
     output = docsearch.similarity_search("foo", k=1)
     assert output[0].page_content == "foo"
 
 
-def test_kinetica_embeddings(create_config: KineticaSettings) -> None:
+def test_kinetica_embeddings(fx_kdbc: GPUdb) -> None:
     """Test end to end construction with embeddings and search."""
     texts = ["foo", "bar", "baz"]
     text_embeddings = FakeEmbeddingsWithAdaDimension().embed_documents(texts)
     text_embedding_pairs = list(zip(texts, text_embeddings, strict=False))
     docsearch = KineticaVectorstore.from_embeddings(
-        config=create_config,
+        kdbc=fx_kdbc,
         text_embeddings=text_embedding_pairs,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_embeddings",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
     output = docsearch.similarity_search("foo", k=1)
     assert output == [Document(page_content="foo")]
 
 
-def test_kinetica_with_metadatas(create_config: KineticaSettings) -> None:
+def test_kinetica_with_metadatas(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_with_metadatas",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search("foo", k=1)
     assert output == [Document(page_content="foo", metadata={"page": "0"})]
 
 
-def test_kinetica_with_metadatas_with_scores(create_config: KineticaSettings) -> None:
+def test_kinetica_with_metadatas_with_scores(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_with_metadatas_with_scores",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search_with_score("foo", k=1)
     assert output == [(Document(page_content="foo", metadata={"page": "0"}), 0.0)]
 
 
-def test_kinetica_with_filter_match(create_config: KineticaSettings) -> None:
+def test_kinetica_with_filter_match(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_with_filter_match",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search_with_score(
@@ -137,18 +137,18 @@ def test_kinetica_with_filter_match(create_config: KineticaSettings) -> None:
     assert output == [(Document(page_content="foo", metadata={"page": "0"}), 0.0)]
 
 
-def test_kinetica_with_filter_distant_match(create_config: KineticaSettings) -> None:
+def test_kinetica_with_filter_distant_match(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_with_filter_distant_match",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search_with_score(
@@ -158,18 +158,18 @@ def test_kinetica_with_filter_distant_match(create_config: KineticaSettings) -> 
 
 
 @pytest.mark.skip(reason="Filter condition has IN clause")
-def test_kinetica_with_filter_in_set(create_config: KineticaSettings) -> None:
+def test_kinetica_with_filter_in_set(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_with_filter_in_set",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search_with_score(
@@ -181,18 +181,18 @@ def test_kinetica_with_filter_in_set(create_config: KineticaSettings) -> None:
     ]
 
 
-def test_kinetica_relevance_score(create_config: KineticaSettings) -> None:
+def test_kinetica_relevance_score(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         collection_name="test_kinetica_relevance_score",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search_with_relevance_scores("foo", k=3)
@@ -207,19 +207,19 @@ def test_kinetica_relevance_score(create_config: KineticaSettings) -> None:
     OPENAI_API_KEY is None, reason="OPENAI_API_KEY is None, skipping test"
 )
 def test_kinetica_max_marginal_relevance_search(
-    create_config: KineticaSettings,
+    fx_kdbc: GPUdb,
 ) -> None:
     """Test end to end construction and search."""
     openai = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
     texts = ["foo", "bar", "baz"]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         embedding=openai,
         distance_strategy=DistanceStrategy.COSINE,
         collection_name="test_kinetica_max_marginal_relevance_search",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.max_marginal_relevance_search("foo", k=1, fetch_k=3)
@@ -227,18 +227,18 @@ def test_kinetica_max_marginal_relevance_search(
 
 
 def test_kinetica_max_marginal_relevance_search_with_score(
-    create_config: KineticaSettings,
+    fx_kdbc: GPUdb,
 ) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         embedding=FakeEmbeddingsWithAdaDimension(),
         distance_strategy=DistanceStrategy.EUCLIDEAN,
         collection_name="test_kinetica_max_marginal_relevance_search_with_score",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.max_marginal_relevance_search_with_score("foo", k=1, fetch_k=3)
@@ -248,38 +248,38 @@ def test_kinetica_max_marginal_relevance_search_with_score(
 @pytest.mark.skipif(
     OPENAI_API_KEY is None, reason="OPENAI_API_KEY is None, skipping test"
 )
-def test_kinetica_with_openai_embeddings(create_config: KineticaSettings) -> None:
+def test_kinetica_with_openai_embeddings(fx_kdbc: GPUdb) -> None:
     """Test end to end construction and search."""
     openai = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
     texts = ["foo", "bar", "baz"]
     metadatas = [{"text": text} for text in texts]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=openai,
         collection_name="kinetica_openai_test",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     output = docsearch.similarity_search("foo", k=1)
     assert output == [Document(page_content="foo", metadata={"text": "foo"})]
 
 
-def test_kinetica_retriever_search_threshold(create_config: KineticaSettings) -> None:
+def test_kinetica_retriever_search_threshold(fx_kdbc: GPUdb) -> None:
     """Test using retriever for searching with threshold."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         distance_strategy=DistanceStrategy.EUCLIDEAN,
         collection_name="test_kinetica_retriever_search_threshold",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
     )
 
     retriever = docsearch.as_retriever(
@@ -293,20 +293,20 @@ def test_kinetica_retriever_search_threshold(create_config: KineticaSettings) ->
 
 
 def test_kinetica_retriever_search_threshold_custom_normalization_fn(
-    create_config: KineticaSettings,
+    fx_kdbc: GPUdb,
 ) -> None:
     """Test searching with threshold and custom normalization function."""
     texts = ["foo", "bar", "baz"]
     metadatas = [{"page": str(i)} for i in range(len(texts))]
     docsearch = KineticaVectorstore.from_texts(
-        config=create_config,
+        kdbc=fx_kdbc,
         texts=texts,
         metadatas=metadatas,
         embedding=FakeEmbeddingsWithAdaDimension(),
         distance_strategy=DistanceStrategy.EUCLIDEAN,
         collection_name="test_kinetica_retriever_search_threshold_custom_normalization_fn",
         schema_name=SCHEMA_NAME,
-        pre_delete_collection=False,
+        delete_existing_collection=True,
         relevance_score_fn=lambda d: d * 0,
     )
 

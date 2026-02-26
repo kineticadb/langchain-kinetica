@@ -8,9 +8,9 @@ from langchain_kinetica.chat_models import (
     KineticaSqlResponse,
 )
 from langchain_kinetica.document_loaders import KineticaLoader
+from langchain_kinetica.storage import KineticaStore
 from langchain_kinetica.vectorstores import (
     DistanceStrategy,
-    KineticaSettings,
     KineticaVectorstore,
 )
 
@@ -25,9 +25,9 @@ __all__ = [
     "ChatKinetica",
     "DistanceStrategy",
     "KineticaLoader",
-    "KineticaSettings",
     "KineticaSqlOutputParser",
     "KineticaSqlResponse",
+    "KineticaStore",
     "KineticaVectorstore",
     "__version__",
 ]
