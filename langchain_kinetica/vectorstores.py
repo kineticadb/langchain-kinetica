@@ -17,7 +17,6 @@ from gpudb import GPUdb, GPUdbTable
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
 from langchain_core.vectorstores.utils import maximal_marginal_relevance
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
     from collections import OrderedDict
@@ -28,7 +27,6 @@ if TYPE_CHECKING:
 
 class DistanceStrategy(str, enum.Enum):
     """Enumerator of the Distance strategies."""
-
     EUCLIDEAN = "l2"
     COSINE = "cosine"
     MAX_INNER_PRODUCT = "inner"
@@ -41,20 +39,18 @@ def _results_to_docs(docs_and_scores: Any) -> list[Document]:
 
 class Dimension(int, Enum):
     """Some default dimensions for known embeddings."""
-
     OPENAI = 1536
 
 
-DEFAULT_DISTANCE_STRATEGY = DistanceStrategy.EUCLIDEAN
-
-_LANGCHAIN_DEFAULT_SCHEMA_NAME = "langchain"  ## Default Kinetica schema name
-_LANGCHAIN_DEFAULT_COLLECTION_NAME = (
-    "langchain_kinetica_embeddings"  ## Default Kinetica table name
-)
+_DEFAULT_DISTANCE_STRATEGY = DistanceStrategy.EUCLIDEAN
+_LANGCHAIN_DEFAULT_SCHEMA_NAME = "langchain"
+_LANGCHAIN_DEFAULT_COLLECTION_NAME = "langchain_kinetica_embeddings"
 
 
-class KineticaSettings(BaseSettings):
-    """`Kinetica` client configuration.
+class KineticaVectorstore(VectorStore):
+    """`Kinetica` vector store.
+
+    To use, you should have the ``gpudb`` python package installed.
 
     Connection parameters should be passed as environment variables.
 
@@ -63,54 +59,17 @@ class KineticaSettings(BaseSettings):
         KINETICA_USERNAME='admin'
         KINETICA_PASSWORD=''
 
-    Attributes:
-        kdbc (GPUdb, optional): An optional GPUdb connection instance. If not
-            provided, the connection will be established using environment variables.
-        database (str) : Database name to find the table. Defaults to 'default'.
-        table (str) : Table name to operate on.
-                      Defaults to 'vector_table'.
-        metric (str) : Metric to compute distance,
-                       supported are ('angular', 'euclidean', 'manhattan', 'hamming',
-                       'dot'). Defaults to 'angular'.
-                       https://github.com/spotify/annoy/blob/main/src/annoymodule.cc#L149-L169
-
-    """
-
-    # Optional gpudb connection. If this is not provided then use env variables:
-    # KINETICA_URL, KINETICA_USERNAME, KINETICA_PASSWORD
-    kdbc: GPUdb | None = None
-
-    database: str = _LANGCHAIN_DEFAULT_SCHEMA_NAME
-    table: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME
-    metric: str = DEFAULT_DISTANCE_STRATEGY.value
-
-    def __getitem__(self, item: str) -> Any:
-        """Get attribute by key."""
-        return getattr(self, item)
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="kinetica_",
-        extra="ignore",
-    )
-
-
-class KineticaVectorstore(VectorStore):
-    """`Kinetica` vector store.
-
-    To use, you should have the ``gpudb`` python package installed.
-
     Args:
-        config: Kinetica connection settings class.
         embedding_function: Any embedding function implementing
             `langchain.embeddings.base.Embeddings` interface.
+        kdbc: An optional GPUdb connection instance. If not provided, the connection
+            will be established using environment variables.
         collection_name: The name of the collection to use. (default: langchain)
             NOTE: This is not the name of the table, but the name of the collection.
             The tables will be created when initializing the store (if not exists)
             So, make sure the user has the right permissions to create tables.
         distance_strategy: The distance strategy to use. (default: COSINE)
-        pre_delete_collection: If True, will delete the collection if it exists.
+        delete_existing_collection: If True, will delete the collection if it exists.
             (default: False). Useful for testing.
         engine_args: SQLAlchemy's create engine arguments.
 
@@ -124,34 +83,36 @@ class KineticaVectorstore(VectorStore):
                 documents=docs,
                 embedding=OpenAIEmbeddings(),
                 collection_name="kinetica_store",
-                config=KineticaSettings(),
             )
     """
 
     def __init__(
         self,
-        config: KineticaSettings,
         embedding_function: Embeddings,
         *,  # to force keyword arguments only
+        kdbc: GPUdb | None,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
         schema_name: str = _LANGCHAIN_DEFAULT_SCHEMA_NAME,
-        distance_strategy: DistanceStrategy = DEFAULT_DISTANCE_STRATEGY,
-        pre_delete_collection: bool = False,
+        distance_strategy: DistanceStrategy = _DEFAULT_DISTANCE_STRATEGY,
+        delete_existing_collection: bool = False,
         logger: logging.Logger | None = None,
         relevance_score_fn: Callable[[float], float] | None = None,
     ) -> None:
         """Constructor for the Kinetica class.
 
         Args:
-            config (KineticaSettings): a `KineticaSettings` instance
             embedding_function (Embeddings): embedding function to use
+            kdbc (GPUdb, optional): An optional GPUdb connection instance. If not
+                provided, the connection will be established using environment
+                variables.
             collection_name (str, optional): the Kinetica table name.
                             Defaults to _LANGCHAIN_DEFAULT_COLLECTION_NAME.
             schema_name (str, optional): the Kinetica table name.
                             Defaults to _LANGCHAIN_DEFAULT_SCHEMA_NAME.
             distance_strategy (DistanceStrategy, optional): _description_.
                             Defaults to DEFAULT_DISTANCE_STRATEGY.
-            pre_delete_collection (bool, optional): _description_. Defaults to False.
+            delete_existing_collection (bool, optional): _description_.
+                Defaults to False.
             logger (Optional[logging.Logger], optional): _description_.
                             Defaults to None.
             relevance_score_fn (Optional[Callable[[float], float]], optional):
@@ -159,27 +120,31 @@ class KineticaVectorstore(VectorStore):
                 If not provided, a default function will be used based on the
                 distance strategy. Defaults to None.
         """
-        self._config = config
+        #self._config = config
         self.embedding_function = embedding_function
         self.collection_name = collection_name
         self.schema_name = schema_name
         self._distance_strategy = distance_strategy
-        self.pre_delete_collection = pre_delete_collection
+        self.delete_existing_collection = delete_existing_collection
         self.logger = logger or logging.getLogger(__name__)
         self.override_relevance_score_fn = relevance_score_fn
-        self._db = self.__get_db(self._config)
+
+        self._kdbc: GPUdb | None = kdbc
+        if kdbc is  None:
+            self._kdbc = GPUdb.get_connection()
+
 
     def __post_init__(self, dimensions: int) -> None:
         """Initialize the store."""
         self.dimensions = dimensions
         dimension_field = f"vector({dimensions})"
 
-        if self.pre_delete_collection:
-            self.delete_schema()
-
         self.table_name = self.collection_name
         if self.schema_name is not None and len(self.schema_name) > 0:
             self.table_name = f"{self.schema_name}.{self.collection_name}"
+
+        if self.delete_existing_collection:
+            self.__drop_table()
 
         self.table_schema = [
             ["text", "string"],
@@ -188,13 +153,9 @@ class KineticaVectorstore(VectorStore):
             ["id", "string", "uuid"],
         ]
 
-        self.create_schema()
-        self.EmbeddingStore: GPUdbTable = self.create_tables_if_not_exists()
+        self.__create_schema()
+        self.EmbeddingStore: GPUdbTable = self.__create_tables_if_not_exists()
 
-    def __get_db(self, config: KineticaSettings) -> GPUdb:
-        if config.kdbc is not None:
-            return config.kdbc
-        return GPUdb.get_connection()
 
     @property
     def embeddings(self) -> Embeddings:
@@ -204,17 +165,17 @@ class KineticaVectorstore(VectorStore):
     @classmethod
     def __from(
         cls,
-        config: KineticaSettings,
         texts: list[str],
         embeddings: list[list[float]],
         embedding: Embeddings,
         dimensions: int,
         *,  # to force keyword arguments only
+        kdbc: GPUdb | None,
         metadatas: list[dict] | None = None,
         ids: list[str] | None = None,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
-        distance_strategy: DistanceStrategy = DEFAULT_DISTANCE_STRATEGY,
-        pre_delete_collection: bool = False,
+        distance_strategy: DistanceStrategy = _DEFAULT_DISTANCE_STRATEGY,
+        delete_existing_collection: bool = False,
         logger: logging.Logger | None = None,
         schema_name: str = _LANGCHAIN_DEFAULT_SCHEMA_NAME,
         **kwargs: Any,
@@ -225,11 +186,13 @@ class KineticaVectorstore(VectorStore):
             using different combinations of parameters
 
         Args:
-            config (KineticaSettings): a `KineticaSettings` instance
             texts (List[str]): The list of texts to generate embeddings for and store
             embeddings (List[List[float]]): List of embeddings
             embedding (Embeddings): the Embedding function
             dimensions (int): The number of dimensions the embeddings have
+            kdbc (GPUdb, optional): An optional GPUdb connection instance. If not
+                provided, the connection will be established using environment
+                variables.
             metadatas (Optional[List[dict]], optional): List of JSON data associated
                         with each text. Defaults to None.
             ids (Optional[List[str]], optional): List of unique IDs (UUID by default)
@@ -240,7 +203,7 @@ class KineticaVectorstore(VectorStore):
                         Defaults to _LANGCHAIN_DEFAULT_SCHEMA_NAME.
             distance_strategy (DistanceStrategy, optional): Not used for now.
                         Defaults to DEFAULT_DISTANCE_STRATEGY.
-            pre_delete_collection (bool, optional): Whether to delete the Kinetica
+            delete_existing_collection (bool, optional): Whether to delete the Kinetica
                         schema or not. Defaults to False.
             logger (Optional[logging.Logger], optional): Logger to use for logging at
                         different levels. Defaults to None.
@@ -256,12 +219,12 @@ class KineticaVectorstore(VectorStore):
             metadatas = [{} for _ in texts]
 
         store = cls(
-            config=config,
             collection_name=collection_name,
             schema_name=schema_name,
+            kdbc=kdbc,
             embedding_function=embedding,
             distance_strategy=distance_strategy,
-            pre_delete_collection=pre_delete_collection,
+            delete_existing_collection=delete_existing_collection,
             logger=logger,
             **kwargs,
         )
@@ -274,35 +237,38 @@ class KineticaVectorstore(VectorStore):
 
         return store
 
-    def create_tables_if_not_exists(self) -> Any:
+    def __create_tables_if_not_exists(self) -> Any:
         """Create the table to store the texts and embeddings."""
         return GPUdbTable(
             _type=self.table_schema,
             name=self.table_name,
-            db=self._db,
+            db=self._kdbc,
             options={"is_replicated": "true"},
         )
 
-    def drop_tables(self) -> None:
+    def __drop_table(self) -> None:
         """Delete the table."""
-        self._db.clear_table(
-            f"{self.table_name}", options={"no_error_if_not_exists": "true"}
+        self.logger.info("Deleting table: %s", self.table_name)
+        self._kdbc.clear_table(
+            table_name=f"{self.table_name}",
+            options={"no_error_if_not_exists": "true"}
         )
 
-    def create_schema(self) -> None:
+    def __create_schema(self) -> None:
         """Create a new Kinetica schema."""
-        self._db.create_schema(self.schema_name)
+        self._kdbc.create_schema(self.schema_name)
 
-    def delete_schema(self) -> None:
-        """Delete schema and tables.
+    # def __delete_schema(self) -> None:
+    #     """Delete schema and tables.
 
-        Delete a Kinetica schema with cascade set to `true`
-        This method will delete a schema with all tables in it.
-        """
-        self.logger.debug("Trying to delete collection")
-        self._db.drop_schema(
-            self.schema_name, {"no_error_if_not_exists": "true", "cascade": "true"}
-        )
+    #     Delete a Kinetica schema with cascade set to `true`
+    #     This method will delete a schema with all tables in it.
+    #     """
+    #     self.logger.debug("Trying to delete collection")
+    #     self._kdbc.drop_schema(
+    #         self.schema_name,
+    #         options={"no_error_if_not_exists": "true", "cascade": "true"}
+    #     )
 
     def add_embeddings(
         self,
@@ -547,7 +513,7 @@ class KineticaVectorstore(VectorStore):
         """  # noqa: S608
 
         self.logger.debug(query_string)
-        resp = self._db.execute_sql_and_decode(query_string)
+        resp = self._kdbc.execute_sql_and_decode(query_string)
         self.logger.debug(resp)
         return resp
 
@@ -749,12 +715,12 @@ class KineticaVectorstore(VectorStore):
         texts: list[str],
         embedding: Embeddings,
         metadatas: list[dict] | None = None,
-        config: KineticaSettings | None = None,
+        kdbc: GPUdb | None = None,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
-        distance_strategy: DistanceStrategy = DEFAULT_DISTANCE_STRATEGY,
+        distance_strategy: DistanceStrategy = _DEFAULT_DISTANCE_STRATEGY,
         ids: list[str] | None = None,
         *,
-        pre_delete_collection: bool = False,
+        delete_existing_collection: bool = False,
         schema_name: str = _LANGCHAIN_DEFAULT_SCHEMA_NAME,
         **kwargs: Any,
     ) -> KineticaVectorstore:
@@ -766,7 +732,9 @@ class KineticaVectorstore(VectorStore):
             embedding (Embeddings): List of embeddings
             metadatas (Optional[List[dict]], optional): List of dicts, JSON
                         describing the texts/documents. Defaults to None.
-            config (KineticaSettings): a `KineticaSettings` instance
+            kdbc (GPUdb, optional): An optional GPUdb connection instance. If not
+                        provided, the connection will be established using environment
+                        variables.
             collection_name (str, optional): Kinetica schema name.
                         Defaults to _LANGCHAIN_DEFAULT_COLLECTION_NAME.
             schema_name (str, optional): Kinetica schema name.
@@ -775,7 +743,7 @@ class KineticaVectorstore(VectorStore):
                         e.g., l2, cosine etc.. Defaults to DEFAULT_DISTANCE_STRATEGY.
             ids (Optional[List[str]], optional): A list of UUIDs for each
                         text/document. Defaults to None.
-            pre_delete_collection (bool, optional): Indicates whether the Kinetica
+            delete_existing_collection (bool, optional): Indicates whether the Kinetica
                         schema is to be deleted or not. Defaults to False.
 
         Returns:
@@ -784,9 +752,6 @@ class KineticaVectorstore(VectorStore):
         if len(texts) == 0:
             msg = "texts is empty"
             raise ValueError(msg)
-
-        if config is None:
-            config = KineticaSettings()
 
         try:
             first_embedding = embedding.embed_documents(texts[0:1])
@@ -801,13 +766,13 @@ class KineticaVectorstore(VectorStore):
             embeddings=embeddings,
             embedding=embedding,
             dimensions=dimensions,
-            config=config,
+            kdbc=kdbc,
             metadatas=metadatas,
             ids=ids,
             collection_name=collection_name,
             schema_name=schema_name,
             distance_strategy=distance_strategy,
-            pre_delete_collection=pre_delete_collection,
+            delete_existing_collection=delete_existing_collection,
             **kwargs,
         )
 
@@ -817,13 +782,13 @@ class KineticaVectorstore(VectorStore):
         text_embeddings: list[tuple[str, list[float]]],
         embedding: Embeddings,
         metadatas: list[dict] | None = None,
-        config: KineticaSettings | None = None,
+        kdbc: GPUdb | None = None,
         dimensions: int = Dimension.OPENAI,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
-        distance_strategy: DistanceStrategy = DEFAULT_DISTANCE_STRATEGY,
+        distance_strategy: DistanceStrategy = _DEFAULT_DISTANCE_STRATEGY,
         ids: list[str] | None = None,
         *,
-        pre_delete_collection: bool = False,
+        delete_existing_collection: bool = False,
         schema_name: str = _LANGCHAIN_DEFAULT_SCHEMA_NAME,
         **kwargs: Any,
     ) -> KineticaVectorstore:
@@ -836,7 +801,9 @@ class KineticaVectorstore(VectorStore):
             embedding (Embeddings): List of embeddings
             metadatas (Optional[List[dict]], optional): List of dicts, JSON describing
                         the texts/documents. Defaults to None.
-            config (KineticaSettings): a `KineticaSettings` instance
+            kdbc (GPUdb, optional): An optional GPUdb connection instance. If not
+                        provided, the connection will be established using environment
+                        variables.
             dimensions (int, optional): Dimension for the vector data, if not passed a
                         default will be used. Defaults to Dimension.OPENAI.
             collection_name (str, optional): Kinetica schema name.
@@ -847,15 +814,12 @@ class KineticaVectorstore(VectorStore):
                         e.g., l2, cosine etc.. Defaults to DEFAULT_DISTANCE_STRATEGY.
             ids (Optional[List[str]], optional): A list of UUIDs for each text/document.
                         Defaults to None.
-            pre_delete_collection (bool, optional): Indicates whether the
+            delete_existing_collection (bool, optional): Indicates whether the
                         Kinetica schema is to be deleted or not. Defaults to False.
 
         Returns:
             Kinetica: a `Kinetica` instance
         """
-        if config is None:
-            config = KineticaSettings()
-
         texts = [t[0] for t in text_embeddings]
         embeddings = [t[1] for t in text_embeddings]
         dimensions = len(embeddings[0])
@@ -865,13 +829,13 @@ class KineticaVectorstore(VectorStore):
             embeddings=embeddings,
             embedding=embedding,
             dimensions=dimensions,
-            config=config,
+            kdbc=kdbc,
             metadatas=metadatas,
             ids=ids,
             collection_name=collection_name,
             schema_name=schema_name,
             distance_strategy=distance_strategy,
-            pre_delete_collection=pre_delete_collection,
+            delete_existing_collection=delete_existing_collection,
             **kwargs,
         )
 
@@ -880,13 +844,13 @@ class KineticaVectorstore(VectorStore):
         cls: type[KineticaVectorstore],
         documents: list[Document],
         embedding: Embeddings,
-        config: KineticaSettings | None = None,
+        kdbc: GPUdb | None = None,
         metadatas: list[dict] | None = None,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
-        distance_strategy: DistanceStrategy = DEFAULT_DISTANCE_STRATEGY,
+        distance_strategy: DistanceStrategy = _DEFAULT_DISTANCE_STRATEGY,
         ids: list[str] | None = None,
         *,
-        pre_delete_collection: bool = False,
+        delete_existing_collection: bool = False,
         schema_name: str = _LANGCHAIN_DEFAULT_SCHEMA_NAME,
         **kwargs: Any,
     ) -> KineticaVectorstore:
@@ -897,7 +861,9 @@ class KineticaVectorstore(VectorStore):
             documents (List[str]): A list of texts for which the embeddings are
                         generated
             embedding (Embeddings): List of embeddings
-            config (KineticaSettings): a `KineticaSettings` instance
+            kdbc (GPUdb, optional): An optional GPUdb connection instance. If not
+                        provided, the connection will be established using environment
+                        variables.
             metadatas (Optional[List[dict]], optional): List of dicts, JSON describing
                         the texts/documents. Defaults to None.
             collection_name (str, optional): Kinetica schema name.
@@ -908,15 +874,12 @@ class KineticaVectorstore(VectorStore):
                         e.g., l2, cosine etc.. Defaults to DEFAULT_DISTANCE_STRATEGY.
             ids (Optional[List[str]], optional): A list of UUIDs for each text/document.
                         Defaults to None.
-            pre_delete_collection (bool, optional): Indicates whether the Kinetica
+            delete_existing_collection (bool, optional): Indicates whether the Kinetica
                         schema is to be deleted or not. Defaults to False.
 
         Returns:
             Kinetica: a `Kinetica` instance
         """
-        if config is None:
-            config = KineticaSettings()
-
         texts = [d.page_content for d in documents]
         metadatas = [d.metadata for d in documents]
 
@@ -924,11 +887,11 @@ class KineticaVectorstore(VectorStore):
             texts=texts,
             embedding=embedding,
             metadatas=metadatas,
-            config=config,
+            kdbc=kdbc,
             collection_name=collection_name,
             schema_name=schema_name,
             distance_strategy=distance_strategy,
             ids=ids,
-            pre_delete_collection=pre_delete_collection,
+            delete_existing_collection=delete_existing_collection,
             **kwargs,
         )
