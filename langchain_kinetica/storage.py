@@ -129,6 +129,9 @@ class KineticaStore(ByteStore):
         resp = self._kdbc.execute_sql_and_decode(query)
 
         records = resp.get("records", {})
+        if len(records) == 0:
+            return [None] * len(keys)
+
         result_dict = dict(
             zip(records.get("key", []), records.get("value", []), strict=False)
         )
@@ -167,17 +170,28 @@ class KineticaStore(ByteStore):
 
 
     def yield_keys(self, *, prefix: str | None = None) -> Iterator[str]:
-        """Yield keys in the store."""
-        # if prefix:
-        #     pattern = self._get_prefixed_key(prefix)
-        # else:
-        #     pattern = self._get_prefixed_key("*")
-        # scan_iter = cast(Iterator[bytes], self.client.scan_iter(match=pattern))
-        # for key in scan_iter:
-        #     decoded_key = key.decode("utf-8")
-        #     if self.namespace:
-        #         relative_key = decoded_key[len(self.namespace) + 1 :]
-        #         yield relative_key
-        #     else:
-        #         yield decoded_key
-        return None
+        """Yield keys in the store.
+
+        Args:
+            prefix: If provided, only yield keys that start with this prefix.
+
+        Yields:
+            Keys stored in the table, optionally filtered by prefix.
+        """
+        # TODO: Use an iterator-based approach to handle large numbers of keys
+        # without loading them all into memory at once.
+
+        where_clause = ""
+        if prefix:
+            escaped_prefix = prefix.replace("'", "''")
+            where_clause = f" WHERE key LIKE '{escaped_prefix}%'"
+
+        query = f"SELECT key FROM {self.table_name}{where_clause}"  # noqa: S608
+        resp = self._kdbc.execute_sql_and_decode(query)
+
+        records = resp.get("records", {})
+        if len(records) == 0:
+            yield from []
+            return
+
+        yield from records.get("key", [])

@@ -83,6 +83,10 @@ ignore = [
 
     # TODO
     "ANN401",
+    "TD002", # missing author in todo
+    "TD003", # missing date in todo
+    "FIX002", # Line contains TODO
+    
 ]
 #unfixable = ["B028"]
 
